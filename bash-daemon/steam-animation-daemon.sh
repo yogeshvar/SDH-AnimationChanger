@@ -471,11 +471,17 @@ cleanup_cache() {
     log_debug "Cleaning up video cache"
     
     if [[ ! -d "$CACHE_DIR" ]]; then
+        log_debug "Cache directory doesn't exist, skipping cleanup"
         return 0
     fi
     
-    # Remove files older than CACHE_MAX_DAYS
-    find "$CACHE_DIR" -type f -name "*.webm" -mtime +$CACHE_MAX_DAYS -delete 2>/dev/null || true
+    # Remove files older than CACHE_MAX_DAYS (if any exist)
+    local old_files
+    old_files=$(find "$CACHE_DIR" -type f -name "*.webm" -mtime +$CACHE_MAX_DAYS 2>/dev/null | wc -l)
+    if [[ $old_files -gt 0 ]]; then
+        log_debug "Removing $old_files old cache files"
+        find "$CACHE_DIR" -type f -name "*.webm" -mtime +$CACHE_MAX_DAYS -delete 2>/dev/null || true
+    fi
     
     # Check cache size and remove oldest files if needed
     local cache_size_kb
@@ -485,28 +491,42 @@ cleanup_cache() {
     if [[ $cache_size_kb -gt $max_cache_kb ]]; then
         log_info "Cache size ${cache_size_kb}KB exceeds limit ${max_cache_kb}KB, cleaning up"
         
-        # Remove oldest files until under limit
-        find "$CACHE_DIR" -type f -name "*.webm" -printf '%T@ %p\n' | sort -n | while read -r timestamp file; do
-            rm -f "$file"
-            cache_size_kb=$(du -sk "$CACHE_DIR" 2>/dev/null | cut -f1 || echo 0)
-            if [[ $cache_size_kb -le $max_cache_kb ]]; then
-                break
+        # Simple approach: remove all cache files and let them regenerate
+        # This avoids complex sorting that might hang
+        local files_removed=0
+        for file in "$CACHE_DIR"/*.webm; do
+            if [[ -f "$file" ]]; then
+                rm -f "$file"
+                ((files_removed++))
+                # Check size after each removal
+                cache_size_kb=$(du -sk "$CACHE_DIR" 2>/dev/null | cut -f1 || echo 0)
+                if [[ $cache_size_kb -le $max_cache_kb ]]; then
+                    break
+                fi
             fi
         done
+        log_debug "Removed $files_removed cache files"
     fi
+    
+    log_debug "Cache cleanup completed"
 }
 
 # Main daemon loop
 main_loop() {
     log_info "Starting main daemon loop"
     
+    local maintenance_counter=0
+    
     while true; do
         # Monitor Steam processes
         monitor_steam_processes
         
-        # Periodic maintenance every 5 minutes
-        if [[ $(($(date +%s) % 300)) -eq 0 ]]; then
+        # Periodic maintenance every 5 minutes (300 seconds)
+        ((maintenance_counter++))
+        if [[ $maintenance_counter -ge 300 ]]; then
+            log_debug "Running periodic maintenance"
             cleanup_cache
+            maintenance_counter=0
         fi
         
         sleep 1
