@@ -1,41 +1,23 @@
 [Unit]
 Description=Steam Animation Manager (Bash)
 Documentation=https://github.com/YourUsername/steam-animation-manager
-After=graphical-session.target
-Wants=graphical-session.target
-PartOf=graphical-session.target
 
 [Service]
-Type=notify
+Type=simple
 ExecStart=/usr/local/bin/steam-animation-daemon.sh start
-ExecStop=/usr/local/bin/steam-animation-daemon.sh stop
-ExecReload=/usr/local/bin/steam-animation-daemon.sh reload
+ExecReload=/bin/kill -HUP $MAINPID
 Restart=always
 RestartSec=5
 TimeoutStartSec=30
 TimeoutStopSec=30
 
-# Run as deck user
-User=deck
-Group=deck
-
-# Security settings (relaxed for bind mounts)
-NoNewPrivileges=yes
-ProtectSystem=false
-ProtectHome=false
-
 # Environment
 Environment=PATH=/usr/local/bin:/usr/bin:/bin
-Environment=HOME=/home/deck
 
 # Logging
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=steam-animation-manager
-
-# Watchdog
-WatchdogSec=60
-NotifyAccess=main
 
 [Install]
 WantedBy=default.target

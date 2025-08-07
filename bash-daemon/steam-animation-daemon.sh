@@ -176,6 +176,12 @@ handle_steam_stop() {
 
 # System event monitoring via journalctl
 monitor_system_events() {
+    if ! command -v journalctl >/dev/null 2>&1; then
+        log_warn "journalctl not available - system event monitoring disabled"
+        return
+    fi
+    
+    log_debug "Starting system event monitoring"
     journalctl -f -u systemd-suspend.service -u systemd-hibernate.service --no-pager 2>/dev/null | while read -r line; do
         if [[ "$line" =~ (suspend|Suspending) ]]; then
             log_info "System suspend detected"
@@ -498,7 +504,8 @@ main_loop() {
 
 # Daemon management
 start_daemon() {
-    if [[ -f "$PID_FILE" ]] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
+    # Check if already running when called manually (not from systemd)
+    if [[ -z "$SYSTEMD_EXEC_PID" && -f "$PID_FILE" ]] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
         log_error "Daemon already running (PID: $(cat "$PID_FILE"))"
         exit 1
     fi
@@ -515,11 +522,6 @@ start_daemon() {
     
     # Start system event monitoring
     monitor_system_events
-    
-    # Notify systemd we're ready
-    if command -v systemd-notify >/dev/null 2>&1; then
-        systemd-notify --ready
-    fi
     
     log_info "Steam Animation Daemon started successfully"
     
