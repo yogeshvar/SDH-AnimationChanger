@@ -441,19 +441,27 @@ prepare_boot_animation() {
 prepare_suspend_animation() {
     log_info "Preparing suspend animation"
     
+    # Handle suspend animation
     local source_file=""
-    
     if [[ -n "$CURRENT_SUSPEND" && -f "$CURRENT_SUSPEND" ]]; then
         source_file="$CURRENT_SUSPEND"
     else
         source_file=$(select_random_animation "suspend")
     fi
     
-    if [[ -n "$source_file" ]]; then
-        apply_animation "suspend" "$source_file" "$STEAM_OVERRIDE_DIR/$SUSPEND_VIDEO"
+    # Fall back to boot animation if no suspend animation found
+    if [[ -z "$source_file" && -n "$CURRENT_BOOT" && -f "$CURRENT_BOOT" ]]; then
+        log_info "No suspend animation found, using boot animation as fallback"
+        source_file="$CURRENT_BOOT"
     fi
     
-    # Also handle throbber animation (in-game suspend)
+    if [[ -n "$source_file" ]]; then
+        apply_animation "suspend" "$source_file" "$STEAM_OVERRIDE_DIR/$SUSPEND_VIDEO"
+    else
+        log_info "No suspend animation configured, using Steam default"
+    fi
+    
+    # Handle throbber animation (in-game suspend)
     local throbber_file=""
     if [[ -n "$CURRENT_THROBBER" && -f "$CURRENT_THROBBER" ]]; then
         throbber_file="$CURRENT_THROBBER"
@@ -461,8 +469,16 @@ prepare_suspend_animation() {
         throbber_file=$(select_random_animation "throbber")
     fi
     
+    # Fall back to boot animation if no throbber animation found
+    if [[ -z "$throbber_file" && -n "$CURRENT_BOOT" && -f "$CURRENT_BOOT" ]]; then
+        log_info "No throbber animation found, using boot animation as fallback"
+        throbber_file="$CURRENT_BOOT"
+    fi
+    
     if [[ -n "$throbber_file" ]]; then
         apply_animation "throbber" "$throbber_file" "$STEAM_OVERRIDE_DIR/$THROBBER_VIDEO"
+    else
+        log_info "No throbber animation configured, using Steam default"
     fi
 }
 
@@ -550,6 +566,11 @@ start_daemon() {
     setup_directories
     load_config
     load_animations
+    
+    # Apply initial animations based on configuration
+    log_info "Applying initial animations"
+    prepare_boot_animation
+    prepare_suspend_animation
     
     # Start system event monitoring
     monitor_system_events

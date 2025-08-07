@@ -1,6 +1,8 @@
 [Unit]
 Description=Steam Animation Manager (Bash)
 Documentation=https://github.com/YourUsername/steam-animation-manager
+After=graphical-session.target
+Wants=graphical-session.target
 
 [Service]
 Type=simple
@@ -13,6 +15,7 @@ TimeoutStopSec=30
 
 # Environment
 Environment=PATH=/usr/local/bin:/usr/bin:/bin
+Environment=XDG_RUNTIME_DIR=%i
 
 # Logging
 StandardOutput=journal
