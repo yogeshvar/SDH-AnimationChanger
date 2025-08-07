@@ -49,16 +49,16 @@ case "$1" in
                 fi
                 
                 if [[ -f "$anim_file" ]]; then
-                    # Get animation duration
-                    local duration
-                    duration=$(get_video_duration "$anim_file")
-                    log "Playing suspend animation for ${duration}s: $anim_file"
+                    log "Playing suspend animation for 10s: $anim_file"
                     
-                    # Trigger the animation playback (Steam should handle this)
-                    # We just need to delay the suspend
-                    sleep "$duration"
+                    # Default 10 second delay for suspend animation
+                    sleep 10
                     
-                    log "Animation complete, proceeding with suspend"
+                    # Clear the suspend animation so it doesn't show on wake up
+                    rm -f "$STEAM_OVERRIDE_DIR/$SUSPEND_VIDEO"
+                    rm -f "$STEAM_OVERRIDE_DIR/$THROBBER_VIDEO"
+                    
+                    log "Animation complete, cleared suspend animations, proceeding with suspend"
                 fi
             else
                 log "No suspend animation configured"
