@@ -130,7 +130,7 @@ setup_user_directories() {
     log_info "Setting up user directories..."
     
     local user_home="/home/$USER"
-    local animations_dir="$user_home/homebrew/data/Animation Changer"
+    local animations_dir="$user_home/homebrew/data/SDH-AnimationChanger"
     
     # Create directories using existing plugin structure
     sudo -u "$USER" mkdir -p "$animations_dir/animations"
@@ -176,9 +176,9 @@ EOF
 check_plugin_compatibility() {
     log_info "Checking 'Animation Changer' plugin compatibility..."
     
-    # Plugin paths based on plugin.json name "Animation Changer"
-    local plugin_data="/home/$USER/homebrew/data/Animation Changer"
-    local plugin_config="/home/$USER/homebrew/settings/Animation Changer/config.json"
+# Plugin paths based on actual folder name "SDH-AnimationChanger"
+    local plugin_data="/home/$USER/homebrew/data/SDH-AnimationChanger"
+    local plugin_config="/home/$USER/homebrew/settings/SDH-AnimationChanger/config.json"
     
     if [ -d "$plugin_data" ]; then
         local anim_count=0
@@ -266,7 +266,7 @@ show_status() {
     echo "Daemon script: $INSTALL_DIR/$DAEMON_SCRIPT"
     echo "Configuration: $CONFIG_DIR/config.conf"
     echo "Service file: /home/$USER/.config/systemd/user/steam-animation-manager.service"
-    echo "Animation directory: /home/$USER/homebrew/data/Animation Changer/animations/"
+    echo "Animation directory: /home/$USER/homebrew/data/SDH-AnimationChanger/animations/"
     echo ""
     log_info "Service Management:"
     echo "Start:  systemctl --user start steam-animation-manager.service"
@@ -304,7 +304,7 @@ uninstall() {
     sudo -u "$USER" XDG_RUNTIME_DIR="/run/user/$(id -u $USER)" systemctl --user daemon-reload 2>/dev/null || true
     
     log_success "Steam Animation Manager uninstalled"
-    log_info "User data preserved in /home/$USER/homebrew/data/Animation Changer/"
+    log_info "User data preserved in /home/$USER/homebrew/data/SDH-AnimationChanger/"
     log_info "Configuration preserved in $CONFIG_DIR/"
 }
 
@@ -332,7 +332,7 @@ Requirements:
 - Root access (for installation)
 
 After installation, animations go in:
-/home/$USER/homebrew/data/Animation Changer/animations/
+/home/$USER/homebrew/data/SDH-AnimationChanger/animations/
 
 Configuration file:
 $CONFIG_DIR/config.conf

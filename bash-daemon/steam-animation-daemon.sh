@@ -14,10 +14,10 @@ CONFIG_FILE="${CONFIG_FILE:-/etc/steam-animation-manager/config.conf}"
 PID_FILE="/run/user/$UID/steam-animation-daemon.pid"
 LOG_FILE="/tmp/steam-animation-daemon.log"
 
-# Use existing "Animation Changer" plugin paths (from plugin.json name)
-# DECKY_PLUGIN_RUNTIME_DIR = ~/homebrew/data/Animation Changer/
-ANIMATIONS_DIR="${HOME}/homebrew/data/Animation Changer/animations"
-DOWNLOADS_DIR="${HOME}/homebrew/data/Animation Changer/downloads"
+# Use existing SDH-AnimationChanger plugin paths (actual folder name)
+# DECKY_PLUGIN_RUNTIME_DIR = ~/homebrew/data/SDH-AnimationChanger/
+ANIMATIONS_DIR="${HOME}/homebrew/data/SDH-AnimationChanger/animations"
+DOWNLOADS_DIR="${HOME}/homebrew/data/SDH-AnimationChanger/downloads"
 STEAM_OVERRIDE_DIR="${HOME}/.steam/root/config/uioverrides/movies"
 CACHE_DIR="/tmp/steam-animation-cache"
 
@@ -103,9 +103,9 @@ SHUFFLE_EXCLUSIONS=""
 DEBUG_MODE=false
 
 # NOTE: Downloaded animations (from plugin) are in:
-# /home/deck/homebrew/data/Animation Changer/downloads/
+# /home/deck/homebrew/data/SDH-AnimationChanger/downloads/
 # Animation sets are in:
-# /home/deck/homebrew/data/Animation Changer/animations/
+# /home/deck/homebrew/data/SDH-AnimationChanger/animations/
 EOF
 }
 
