@@ -1,0 +1,11 @@
+[Unit]
+Description=Steam Animation Manager Maintenance Timer
+Requires=steam-animation-manager.service
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=30min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

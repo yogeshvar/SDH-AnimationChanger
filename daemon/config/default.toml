@@ -1,0 +1,39 @@
+# Steam Animation Manager Configuration
+# This is the default configuration file for the Steam Animation Manager daemon
+
+# Path configurations
+animations_path = "/home/deck/.local/share/steam-animation-manager/animations"
+downloads_path = "/home/deck/.local/share/steam-animation-manager/downloads"
+steam_override_path = "/home/deck/.steam/root/config/uioverrides/movies"
+animation_cache_path = "/tmp/steam-animation-cache"
+
+# Current animation selections (empty = default Steam animations)
+current_boot_animation = ""
+current_suspend_animation = ""
+current_throbber_animation = ""
+
+# Randomization settings
+randomize_mode = "disabled"  # Options: "disabled", "per_boot", "per_set"
+shuffle_exclusions = []      # Animation IDs to exclude from randomization
+
+# Video processing settings
+max_animation_duration = "5s"    # Maximum duration to prevent stuck animations
+target_width = 1280              # Steam Deck native width
+target_height = 720              # Steam Deck native height
+video_quality = 23               # VP9 CRF value (lower = better quality, larger size)
+
+# Cache management
+max_cache_size_mb = 500          # Maximum cache size in MB
+cache_max_age_days = 30          # Remove cached files older than this
+
+# Network settings
+force_ipv4 = false               # Force IPv4 connections
+connection_timeout = "30s"       # Network timeout
+
+# Monitoring settings
+process_check_interval = "1s"    # How often to check Steam processes
+maintenance_interval = "300s"    # How often to run maintenance tasks
+
+# Logging
+log_level = "info"               # Options: "error", "warn", "info", "debug", "trace"
+enable_debug = false             # Enable debug mode
