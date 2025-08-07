@@ -102,6 +102,9 @@ SHUFFLE_EXCLUSIONS=""
 # Debug mode
 DEBUG_MODE=false
 
+# Suspend behavior
+DELAY_SUSPEND_FOR_ANIMATION=true  # Wait for animation to finish before suspending
+
 # NOTE: Downloaded animations (from plugin) are in:
 # /home/deck/homebrew/data/SDH-AnimationChanger/downloads/
 # Animation sets are in:
@@ -186,7 +189,7 @@ monitor_system_events() {
         if [[ "$line" =~ (suspend|Suspending) ]]; then
             log_info "System suspend detected"
             WAS_SUSPENDED=true
-            prepare_suspend_animation
+            handle_suspend_with_animation
         elif [[ "$line" =~ (resume|resumed) ]]; then
             log_info "System resume detected"
             if [[ "$WAS_SUSPENDED" == "true" ]]; then
@@ -195,6 +198,37 @@ monitor_system_events() {
             fi
         fi
     done &
+}
+
+# Handle suspend with animation delay
+handle_suspend_with_animation() {
+    log_info "Intercepting suspend to play animation"
+    
+    # Apply the animation first
+    prepare_suspend_animation
+    
+    # Get the animation duration for delay
+    local animation_duration=3  # Default delay
+    local anim_id=""
+    
+    if [[ -n "$CURRENT_SUSPEND" ]]; then
+        anim_id="$CURRENT_SUSPEND"
+    elif [[ -n "$CURRENT_BOOT" ]]; then
+        anim_id="$CURRENT_BOOT"
+    fi
+    
+    if [[ -n "$anim_id" ]]; then
+        local source_file
+        if source_file=$(resolve_animation_path "$anim_id"); then
+            animation_duration=$(get_video_duration "$source_file")
+            log_info "Animation duration: ${animation_duration}s"
+        fi
+    fi
+    
+    # Block suspend until animation completes
+    log_info "Blocking suspend for ${animation_duration}s to complete animation"
+    sleep "$animation_duration"
+    log_info "Animation complete, allowing suspend"
 }
 
 # Animation discovery

@@ -89,6 +89,14 @@ install_daemon() {
     chmod +x "$INSTALL_DIR/$DAEMON_SCRIPT"
     
     log_success "Daemon installed to $INSTALL_DIR/$DAEMON_SCRIPT"
+    
+    # Install suspend hook for animation delay
+    if [ -f "$SCRIPT_DIR/steam-animation-suspend.sh" ]; then
+        log_info "Installing suspend animation hook..."
+        cp "$SCRIPT_DIR/steam-animation-suspend.sh" /usr/lib/systemd/system-sleep/
+        chmod +x /usr/lib/systemd/system-sleep/steam-animation-suspend.sh
+        log_success "Suspend hook installed"
+    fi
 }
 
 setup_config() {
@@ -323,6 +331,7 @@ uninstall() {
     rm -f "$INSTALL_DIR/$DAEMON_SCRIPT"
     rm -f "$SYSTEMD_DIR/steam-animation-manager.service"
     rm -f "/home/$USER/.config/systemd/user/steam-animation-manager.service"
+    rm -f "/usr/lib/systemd/system-sleep/steam-animation-suspend.sh"
     
     # Reload both system and user systemd
     systemctl daemon-reload
