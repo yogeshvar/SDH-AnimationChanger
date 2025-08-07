@@ -73,16 +73,12 @@ create_default_config() {
     cat > "$CONFIG_FILE" << 'EOF'
 # Steam Animation Manager Configuration
 
-# Current animation selections (animation IDs, not full paths)
-# Examples:
-# CURRENT_BOOT="some-animation-id"          # Downloaded animation ID
-# CURRENT_BOOT="set-name/deck_startup.webm" # Animation set file
-CURRENT_BOOT=""
-CURRENT_SUSPEND=""
-CURRENT_THROBBER=""
+# Current animation (animation ID from downloads folder)
+# Example: CURRENT_ANIMATION="abc123"  # Uses abc123.webm for all animations
+CURRENT_ANIMATION=""
 
-# Randomization: disabled, per_boot, per_set
-# per_boot: Randomly select from all downloaded animations for each boot
+# Randomization: disabled, enabled
+# enabled: Randomly select from downloaded animations on each boot
 RANDOMIZE_MODE="disabled"
 
 # Video processing (fixes stuck animations!)
@@ -123,9 +119,11 @@ load_config() {
     source "$CONFIG_FILE"
     
     # Override with any provided values
-    CURRENT_BOOT="${CURRENT_BOOT:-}"
-    CURRENT_SUSPEND="${CURRENT_SUSPEND:-}"
-    CURRENT_THROBBER="${CURRENT_THROBBER:-}"
+    CURRENT_ANIMATION="${CURRENT_ANIMATION:-}"
+    # Handle old config format for backwards compatibility
+    if [[ -z "$CURRENT_ANIMATION" && -n "${CURRENT_BOOT:-}" ]]; then
+        CURRENT_ANIMATION="$CURRENT_BOOT"
+    fi
     RANDOMIZE_MODE="${RANDOMIZE_MODE:-disabled}"
     MAX_DURATION="${MAX_DURATION:-30}"
     VIDEO_QUALITY="${VIDEO_QUALITY:-23}"
@@ -431,62 +429,27 @@ resolve_animation_path() {
     return 1
 }
 
-# Animation selection and application
+# Simple animation selection - just pick from downloads
 select_random_animation() {
-    local anim_type="$1"
-    
-    # Find all animation IDs of this type
     local candidates=()
     
-    # Check downloads directory (return animation IDs)
+    # Just get all animations from downloads folder
     if [[ -d "$DOWNLOADS_DIR" ]]; then
         for file in "$DOWNLOADS_DIR"/*.webm; do
             if [[ -f "$file" ]]; then
                 local basename_file
                 basename_file=$(basename "$file" .webm)
-                
-                # Skip if in exclusion list
-                if [[ " $SHUFFLE_EXCLUSIONS " == *" $basename_file "* ]]; then
-                    continue
-                fi
-                
-                # All downloaded animations can be used for any type
                 candidates+=("$basename_file")
             fi
         done
     fi
     
-    # Check animation sets (return relative paths like Python does)
-    if [[ -d "$ANIMATIONS_DIR" ]]; then
-        local pattern
-        case "$anim_type" in
-            "boot") pattern="*/$BOOT_VIDEO" ;;
-            "suspend") pattern="*/$SUSPEND_VIDEO" ;;
-            "throbber") pattern="*/$THROBBER_VIDEO" ;;
-        esac
-        
-        while IFS= read -r -d '' file; do
-            if [[ -f "$file" ]]; then
-                # Get relative path from animations directory
-                local rel_path="${file#$ANIMATIONS_DIR/}"
-                local basename_file
-                basename_file=$(basename "$file")
-                
-                # Skip if in exclusion list
-                if [[ " $SHUFFLE_EXCLUSIONS " == *" $basename_file "* ]]; then
-                    continue
-                fi
-                candidates+=("$rel_path")
-            fi
-        done < <(find "$ANIMATIONS_DIR" -path "$pattern" -print0 2>/dev/null || true)
-    fi
-    
     if [[ ${#candidates[@]} -eq 0 ]]; then
-        log_debug "No $anim_type animations found"
+        log_debug "No animations found in downloads"
         return 1
     fi
     
-    # Select random candidate (return ID, not path)
+    # Pick a random one
     local selected="${candidates[$RANDOM % ${#candidates[@]}]}"
     echo "$selected"
 }
@@ -513,104 +476,115 @@ apply_animation() {
     mount_animation "$optimized_file" "$target_file" "$anim_type"
 }
 
-prepare_boot_animation() {
-    log_info "Preparing boot animation"
+get_random_animations() {
+    # Get all available animations
+    local all_animations=()
     
-    local anim_id=""
-    
-    case "$RANDOMIZE_MODE" in
-        "disabled")
-            if [[ -n "$CURRENT_BOOT" ]]; then
-                anim_id="$CURRENT_BOOT"
+    if [[ -d "$DOWNLOADS_DIR" ]]; then
+        for file in "$DOWNLOADS_DIR"/*.webm; do
+            if [[ -f "$file" ]]; then
+                local basename_file
+                basename_file=$(basename "$file" .webm)
+                all_animations+=("$basename_file")
             fi
-            ;;
-        "per_boot")
-            anim_id=$(select_random_animation "boot")
-            ;;
-        "per_set")
-            # TODO: Implement set-based randomization
-            anim_id=$(select_random_animation "boot")
-            ;;
-    esac
+        done
+    fi
     
-    if [[ -n "$anim_id" ]]; then
-        local source_file
-        if source_file=$(resolve_animation_path "$anim_id"); then
-            apply_animation "boot" "$source_file" "$STEAM_OVERRIDE_DIR/$BOOT_VIDEO"
-        else
-            log_error "Failed to find animation for ID: $anim_id"
-        fi
+    local count=${#all_animations[@]}
+    if [[ $count -eq 0 ]]; then
+        log_error "No animations found in downloads"
+        return 1
+    fi
+    
+    # Pick 3 different random animations
+    if [[ $count -eq 1 ]]; then
+        # Only one animation, use it for all
+        echo "${all_animations[0]} ${all_animations[0]} ${all_animations[0]}"
+    elif [[ $count -eq 2 ]]; then
+        # Two animations, one will be repeated
+        local first="${all_animations[0]}"
+        local second="${all_animations[1]}"
+        echo "$first $second $first"
     else
-        log_info "No boot animation configured, using Steam default"
+        # Three or more, pick 3 different ones
+        local indices=()
+        while [[ ${#indices[@]} -lt 3 ]]; do
+            local idx=$((RANDOM % count))
+            # Check if already selected
+            local already_selected=false
+            for i in "${indices[@]}"; do
+                if [[ $i -eq $idx ]]; then
+                    already_selected=true
+                    break
+                fi
+            done
+            if [[ "$already_selected" == "false" ]]; then
+                indices+=($idx)
+            fi
+        done
+        
+        echo "${all_animations[${indices[0]}]} ${all_animations[${indices[1]}]} ${all_animations[${indices[2]}]}"
     fi
 }
 
-prepare_suspend_animation() {
-    log_info "Preparing suspend animation"
+prepare_all_animations() {
+    log_info "Setting up animations"
     
-    # Handle suspend animation
-    log_debug "Checking for suspend animation configuration"
-    local anim_id=""
-    if [[ -n "$CURRENT_SUSPEND" ]]; then
-        log_debug "Using configured suspend animation: $CURRENT_SUSPEND"
-        anim_id="$CURRENT_SUSPEND"
-    else
-        log_debug "No suspend animation configured, checking for random selection"
-        anim_id=$(select_random_animation "suspend")
-        log_debug "Random suspend animation result: $anim_id"
-    fi
-    
-    # Fall back to boot animation if no suspend animation found
-    if [[ -z "$anim_id" && -n "$CURRENT_BOOT" ]]; then
-        log_info "No suspend animation found, using boot animation as fallback"
-        anim_id="$CURRENT_BOOT"
-    fi
-    
-    if [[ -n "$anim_id" ]]; then
-        log_debug "Resolving suspend animation ID: $anim_id"
-        local source_file
-        if source_file=$(resolve_animation_path "$anim_id"); then
-            log_debug "Applying suspend animation: $source_file"
-            apply_animation "suspend" "$source_file" "$STEAM_OVERRIDE_DIR/$SUSPEND_VIDEO"
+    if [[ "$RANDOMIZE_MODE" == "enabled" ]]; then
+        # Get 3 different random animations
+        local random_selections
+        random_selections=$(get_random_animations)
+        
+        if [[ -n "$random_selections" ]]; then
+            local boot_id suspend_id throbber_id
+            read boot_id suspend_id throbber_id <<< "$random_selections"
+            
+            log_info "Selected animations - Boot: $boot_id, Suspend: $suspend_id, Throbber: $throbber_id"
+            
+            # Apply each animation
+            local source_file
+            
+            # Boot
+            if source_file=$(resolve_animation_path "$boot_id"); then
+                apply_animation "boot" "$source_file" "$STEAM_OVERRIDE_DIR/$BOOT_VIDEO"
+            fi
+            
+            # Suspend
+            if source_file=$(resolve_animation_path "$suspend_id"); then
+                apply_animation "suspend" "$source_file" "$STEAM_OVERRIDE_DIR/$SUSPEND_VIDEO"
+            fi
+            
+            # Throbber
+            if source_file=$(resolve_animation_path "$throbber_id"); then
+                apply_animation "throbber" "$source_file" "$STEAM_OVERRIDE_DIR/$THROBBER_VIDEO"
+            fi
         else
-            log_error "Failed to find suspend animation for ID: $anim_id"
+            log_error "Failed to select random animations"
         fi
-    else
-        log_info "No suspend animation configured, using Steam default"
-    fi
-    
-    # Handle throbber animation (in-game suspend)
-    log_debug "Checking for throbber animation configuration"
-    local throbber_id=""
-    if [[ -n "$CURRENT_THROBBER" ]]; then
-        log_debug "Using configured throbber animation: $CURRENT_THROBBER"
-        throbber_id="$CURRENT_THROBBER"
-    else
-        log_debug "No throbber animation configured, checking for random selection"
-        throbber_id=$(select_random_animation "throbber")
-        log_debug "Random throbber animation result: $throbber_id"
-    fi
-    
-    # Fall back to boot animation if no throbber animation found
-    if [[ -z "$throbber_id" && -n "$CURRENT_BOOT" ]]; then
-        log_info "No throbber animation found, using boot animation as fallback"
-        throbber_id="$CURRENT_BOOT"
-    fi
-    
-    if [[ -n "$throbber_id" ]]; then
-        log_debug "Resolving throbber animation ID: $throbber_id"
+    elif [[ -n "$CURRENT_ANIMATION" ]]; then
+        # Use configured animation for all
         local source_file
-        if source_file=$(resolve_animation_path "$throbber_id"); then
-            log_debug "Applying throbber animation: $source_file"
+        if source_file=$(resolve_animation_path "$CURRENT_ANIMATION"); then
+            log_info "Using configured animation: $CURRENT_ANIMATION"
+            apply_animation "boot" "$source_file" "$STEAM_OVERRIDE_DIR/$BOOT_VIDEO"
+            apply_animation "suspend" "$source_file" "$STEAM_OVERRIDE_DIR/$SUSPEND_VIDEO"
             apply_animation "throbber" "$source_file" "$STEAM_OVERRIDE_DIR/$THROBBER_VIDEO"
         else
-            log_error "Failed to find throbber animation for ID: $throbber_id"
+            log_error "Failed to find animation: $CURRENT_ANIMATION"
         fi
     else
-        log_info "No throbber animation configured, using Steam default"
+        log_info "No animation configured, using Steam defaults"
     fi
-    
-    log_debug "Suspend animation preparation completed"
+}
+
+# Keep individual functions for compatibility
+prepare_boot_animation() {
+    prepare_all_animations
+}
+
+prepare_suspend_animation() {
+    # Already handled by prepare_all_animations
+    log_debug "Suspend animations already prepared"
 }
 
 # Cache management
