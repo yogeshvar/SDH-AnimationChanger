@@ -56,6 +56,31 @@ check_requirements() {
     log_success "All requirements satisfied"
 }
 
+handle_steamos_readonly() {
+    # Check if we're on SteamOS
+    if command -v steamos-readonly >/dev/null 2>&1; then
+        log_info "SteamOS detected - handling readonly filesystem"
+        
+        # Check current readonly status
+        if steamos-readonly status 2>/dev/null | grep -q "enabled"; then
+            log_info "Disabling SteamOS readonly mode for installation"
+            steamos-readonly disable
+            READONLY_WAS_ENABLED=true
+        else
+            log_info "SteamOS readonly mode already disabled"
+            READONLY_WAS_ENABLED=false
+        fi
+    fi
+}
+
+restore_steamos_readonly() {
+    # Restore readonly mode if we disabled it
+    if [ "$READONLY_WAS_ENABLED" = true ] && command -v steamos-readonly >/dev/null 2>&1; then
+        log_info "Re-enabling SteamOS readonly mode"
+        steamos-readonly enable
+    fi
+}
+
 install_daemon() {
     log_info "Installing Steam Animation Manager daemon..."
     
@@ -347,6 +372,7 @@ main() {
             log_info "Installing Steam Animation Manager (Bash Version)"
             log_info "================================================"
             check_requirements
+            handle_steamos_readonly
             cleanup_old_installation
             install_daemon
             setup_config
@@ -356,6 +382,7 @@ main() {
             enable_service
             test_installation
             show_status
+            restore_steamos_readonly
             log_success "Installation completed successfully!"
             ;;
         uninstall)
