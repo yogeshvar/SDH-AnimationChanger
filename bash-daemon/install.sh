@@ -112,12 +112,18 @@ EOF
 install_systemd_service() {
     log_info "Installing systemd service..."
     
-    cp "$SCRIPT_DIR/steam-animation-manager.service" "$SYSTEMD_DIR/"
+    # Install to user systemd directory
+    local user_systemd_dir="/home/$USER/.config/systemd/user"
+    sudo -u "$USER" mkdir -p "$user_systemd_dir"
     
-    # Reload systemd
-    systemctl daemon-reload
+    # Copy service file to user directory
+    cp "$SCRIPT_DIR/steam-animation-manager.service" "$user_systemd_dir/"
+    chown "$USER:$USER" "$user_systemd_dir/steam-animation-manager.service"
     
-    log_success "Systemd service installed"
+    # Reload user systemd
+    sudo -u "$USER" XDG_RUNTIME_DIR="/run/user/$(id -u $USER)" systemctl --user daemon-reload
+    
+    log_success "Systemd user service installed"
 }
 
 setup_user_directories() {
@@ -237,13 +243,21 @@ test_installation() {
 cleanup_old_installation() {
     log_info "Cleaning up any old installation..."
     
-    # Stop old service if running (with proper environment)
+    # Stop old service if running (both system and user locations)
     sudo -u "$USER" XDG_RUNTIME_DIR="/run/user/$(id -u $USER)" systemctl --user stop steam-animation-manager.service 2>/dev/null || true
     sudo -u "$USER" XDG_RUNTIME_DIR="/run/user/$(id -u $USER)" systemctl --user disable steam-animation-manager.service 2>/dev/null || true
+    systemctl stop steam-animation-manager.service 2>/dev/null || true
+    systemctl disable steam-animation-manager.service 2>/dev/null || true
     
-    # Remove old files
+    # Remove old files from all possible locations
     rm -f /usr/bin/steam-animation-daemon
     rm -f /usr/local/bin/steam-animation-daemon
+    rm -f "$SYSTEMD_DIR/steam-animation-manager.service"
+    rm -f "/home/$USER/.config/systemd/user/steam-animation-manager.service"
+    
+    # Reload both systemd instances
+    systemctl daemon-reload 2>/dev/null || true
+    sudo -u "$USER" XDG_RUNTIME_DIR="/run/user/$(id -u $USER)" systemctl --user daemon-reload 2>/dev/null || true
 }
 
 show_status() {
@@ -251,7 +265,7 @@ show_status() {
     log_info "===================="
     echo "Daemon script: $INSTALL_DIR/$DAEMON_SCRIPT"
     echo "Configuration: $CONFIG_DIR/config.conf"
-    echo "Service file: $SYSTEMD_DIR/steam-animation-manager.service"
+    echo "Service file: /home/$USER/.config/systemd/user/steam-animation-manager.service"
     echo "Animation directory: /home/$USER/homebrew/data/Animation Changer/animations/"
     echo ""
     log_info "Service Management:"
@@ -283,9 +297,11 @@ uninstall() {
     # Remove files
     rm -f "$INSTALL_DIR/$DAEMON_SCRIPT"
     rm -f "$SYSTEMD_DIR/steam-animation-manager.service"
+    rm -f "/home/$USER/.config/systemd/user/steam-animation-manager.service"
     
-    # Reload systemd
+    # Reload both system and user systemd
     systemctl daemon-reload
+    sudo -u "$USER" XDG_RUNTIME_DIR="/run/user/$(id -u $USER)" systemctl --user daemon-reload 2>/dev/null || true
     
     log_success "Steam Animation Manager uninstalled"
     log_info "User data preserved in /home/$USER/homebrew/data/Animation Changer/"
