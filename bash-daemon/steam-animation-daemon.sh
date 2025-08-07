@@ -273,45 +273,56 @@ optimize_video() {
     fi
 }
 
-# Animation mounting (replaces symlink hacks)
+# Animation mounting - try bind mount, fall back to symlink
 mount_animation() {
     local source="$1"
     local target="$2"
     local anim_type="$3"
     
-    log_debug "Mounting $anim_type animation: $(basename "$source") -> $(basename "$target")"
+    log_debug "Applying $anim_type animation: $(basename "$source") -> $(basename "$target")"
     
-    # Unmount if already mounted
-    if mountpoint -q "$target" 2>/dev/null; then
-        umount "$target" 2>/dev/null || true
-    fi
+    # Remove existing file/symlink/mount
+    unmount_animation "$target"
     
-    # Remove existing file
-    rm -f "$target"
-    
-    # Create empty target file for bind mount
-    touch "$target"
-    
-    # Use bind mount instead of symlink (safer than symlinks)
+    # Try bind mount first (requires special permissions)
+    touch "$target" 2>/dev/null || true
     if mount --bind "$source" "$target" 2>/dev/null; then
-        log_info "Mounted $anim_type animation: $(basename "$source")"
+        log_info "Bind mounted $anim_type animation: $(basename "$source")"
         return 0
-    else
-        log_error "Failed to mount $anim_type animation: $(basename "$source")"
-        return 1
     fi
+    
+    # Fall back to symlink (works without special permissions)
+    rm -f "$target"
+    if ln -sf "$source" "$target" 2>/dev/null; then
+        log_info "Symlinked $anim_type animation: $(basename "$source")"
+        return 0
+    fi
+    
+    # Fall back to copying file (always works)
+    if cp "$source" "$target" 2>/dev/null; then
+        log_info "Copied $anim_type animation: $(basename "$source")"
+        return 0
+    fi
+    
+    log_error "Failed to apply $anim_type animation: $(basename "$source")"
+    return 1
 }
 
 unmount_animation() {
     local target="$1"
     
+    # Try to unmount if it's a mount point
     if mountpoint -q "$target" 2>/dev/null; then
         if umount "$target" 2>/dev/null; then
             log_debug "Unmounted: $(basename "$target")"
         fi
     fi
     
-    rm -f "$target"
+    # Remove file/symlink
+    if [[ -e "$target" || -L "$target" ]]; then
+        rm -f "$target"
+        log_debug "Removed: $(basename "$target")"
+    fi
 }
 
 unmount_all_animations() {
