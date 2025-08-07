@@ -202,12 +202,18 @@ check_plugin_compatibility() {
 enable_service() {
     log_info "Enabling Steam Animation Manager service..."
     
-    # Enable service for the deck user
-    sudo -u "$USER" systemctl --user enable steam-animation-manager.service
+    # Enable service for the deck user using proper environment
+    sudo -u "$USER" XDG_RUNTIME_DIR="/run/user/$(id -u $USER)" systemctl --user enable steam-animation-manager.service
     
     log_success "Service enabled for user $USER"
-    log_info "Service will start automatically on login"
-    log_info "To start now: sudo -u $USER systemctl --user start steam-animation-manager.service"
+    log_info "Service will start automatically on next login"
+    log_info ""
+    log_info "To start now (run as $USER):"
+    log_info "systemctl --user start steam-animation-manager.service"
+    log_info ""
+    log_info "Or to start immediately:"
+    sudo -u "$USER" XDG_RUNTIME_DIR="/run/user/$(id -u $USER)" systemctl --user start steam-animation-manager.service
+    log_success "Service started!"
 }
 
 test_installation() {
@@ -221,7 +227,7 @@ test_installation() {
     fi
     
     # Test systemd service
-    if systemctl --user -M "$USER@" list-unit-files steam-animation-manager.service >/dev/null 2>&1; then
+    if sudo -u "$USER" XDG_RUNTIME_DIR="/run/user/$(id -u $USER)" systemctl --user list-unit-files steam-animation-manager.service >/dev/null 2>&1; then
         log_success "Systemd service is registered"
     else
         log_warning "Systemd service registration issue"
@@ -231,9 +237,9 @@ test_installation() {
 cleanup_old_installation() {
     log_info "Cleaning up any old installation..."
     
-    # Stop old service if running
-    sudo -u "$USER" systemctl --user stop steam-animation-manager.service 2>/dev/null || true
-    sudo -u "$USER" systemctl --user disable steam-animation-manager.service 2>/dev/null || true
+    # Stop old service if running (with proper environment)
+    sudo -u "$USER" XDG_RUNTIME_DIR="/run/user/$(id -u $USER)" systemctl --user stop steam-animation-manager.service 2>/dev/null || true
+    sudo -u "$USER" XDG_RUNTIME_DIR="/run/user/$(id -u $USER)" systemctl --user disable steam-animation-manager.service 2>/dev/null || true
     
     # Remove old files
     rm -f /usr/bin/steam-animation-daemon
@@ -249,10 +255,13 @@ show_status() {
     echo "Animation directory: /home/$USER/homebrew/data/Animation Changer/animations/"
     echo ""
     log_info "Service Management:"
-    echo "Start:  sudo -u $USER systemctl --user start steam-animation-manager.service"
-    echo "Stop:   sudo -u $USER systemctl --user stop steam-animation-manager.service"
-    echo "Status: sudo -u $USER systemctl --user status steam-animation-manager.service"
-    echo "Logs:   sudo -u $USER journalctl --user -u steam-animation-manager.service -f"
+    echo "Start:  systemctl --user start steam-animation-manager.service"
+    echo "Stop:   systemctl --user stop steam-animation-manager.service"  
+    echo "Status: systemctl --user status steam-animation-manager.service"
+    echo "Logs:   journalctl --user -u steam-animation-manager.service -f"
+    echo ""
+    echo "If running as root, use:"
+    echo "Start:  sudo -u $USER XDG_RUNTIME_DIR=/run/user/\$(id -u $USER) systemctl --user start steam-animation-manager.service"
     echo ""
     log_info "Manual Control:"
     echo "Status: sudo -u $USER $INSTALL_DIR/$DAEMON_SCRIPT status"
@@ -267,9 +276,9 @@ show_status() {
 uninstall() {
     log_info "Uninstalling Steam Animation Manager..."
     
-    # Stop and disable service
-    sudo -u "$USER" systemctl --user stop steam-animation-manager.service 2>/dev/null || true
-    sudo -u "$USER" systemctl --user disable steam-animation-manager.service 2>/dev/null || true
+    # Stop and disable service (with proper environment)
+    sudo -u "$USER" XDG_RUNTIME_DIR="/run/user/$(id -u $USER)" systemctl --user stop steam-animation-manager.service 2>/dev/null || true
+    sudo -u "$USER" XDG_RUNTIME_DIR="/run/user/$(id -u $USER)" systemctl --user disable steam-animation-manager.service 2>/dev/null || true
     
     # Remove files
     rm -f "$INSTALL_DIR/$DAEMON_SCRIPT"
