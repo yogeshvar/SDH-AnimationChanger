@@ -16,6 +16,7 @@ tmp
 # Coverage reports
 coverage
 
+dist/
 # API keys and secrets
 .env
 
@@ -27,7 +28,6 @@ bower_components
 .idea
 *.iml
 
-src/
 # OS metadata
 .DS_Store
 Thumbs.db
