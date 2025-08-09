@@ -27,12 +27,10 @@ bower_components
 .idea
 *.iml
 
+src/
 # OS metadata
 .DS_Store
 Thumbs.db
-
-# Ignore built ts files
-dist/
 
 __pycache__/
 
