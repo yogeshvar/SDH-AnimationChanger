@@ -6290,12 +6290,18 @@
       const [countdown, setCountdown] = React.useState("");
       const intervalRef = React.useRef();
       const startTimeRef = React.useRef();
+      // Interval options: [10s, 30s, 1m, 2m, 15m, 30m] in seconds
+      const intervalOptions = [10, 30, 60, 120, 900, 1800];
+      const intervalLabels = ['10 seconds', '30 seconds', '1 minute', '2 minutes', '15 minutes', '30 minutes'];
+      const currentInterval = settings.auto_shuffle_interval || 10; // Default to 10 seconds
+      const currentIndex = intervalOptions.indexOf(currentInterval);
+      const currentLabel = intervalLabels[currentIndex] || '2 minutes';
       React.useEffect(() => {
           if (settings.auto_shuffle_enabled) {
               startTimeRef.current = Date.now();
               intervalRef.current = setInterval(() => {
                   const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
-                  const remaining = Math.max(0, 120 - elapsed); // 2 minutes = 120 seconds
+                  const remaining = Math.max(0, currentInterval - elapsed);
                   const minutes = Math.floor(remaining / 60);
                   const seconds = remaining % 60;
                   setCountdown(remaining > 0 ? ` (${minutes}:${seconds.toString().padStart(2, '0')})` : "");
@@ -6315,8 +6321,20 @@
                   clearInterval(intervalRef.current);
               }
           };
-      }, [settings.auto_shuffle_enabled]);
-      return (window.SP_REACT.createElement(deckyFrontendLib.ToggleField, { label: `Auto-Shuffle Every 2 Minutes${countdown}`, onChange: (checked) => { saveSettings({ ...settings, auto_shuffle_enabled: checked }); }, checked: settings.auto_shuffle_enabled }));
+      }, [settings.auto_shuffle_enabled, currentInterval]);
+      return (window.SP_REACT.createElement(window.SP_REACT.Fragment, null,
+          window.SP_REACT.createElement(deckyFrontendLib.ToggleField, { label: `Auto-Shuffle Every ${currentLabel}${countdown}`, onChange: (checked) => { saveSettings({ ...settings, auto_shuffle_enabled: checked }); }, checked: settings.auto_shuffle_enabled }),
+          settings.auto_shuffle_enabled && (window.SP_REACT.createElement(deckyFrontendLib.SliderField, { label: "Shuffle Interval", value: currentIndex >= 0 ? currentIndex : 0, min: 0, max: 5, step: 1, valueSuffix: ``, onChange: (value) => {
+                  const newInterval = intervalOptions[value];
+                  saveSettings({ ...settings, auto_shuffle_interval: newInterval });
+              }, notchCount: 6, notchLabels: [
+                  { notchIndex: 0, label: '10s' },
+                  { notchIndex: 1, label: '30s' },
+                  { notchIndex: 2, label: '1m' },
+                  { notchIndex: 3, label: '2m' },
+                  { notchIndex: 4, label: '15m' },
+                  { notchIndex: 5, label: '30m' }
+              ] }))));
   };
   const Content = () => {
       const { allAnimations, settings, saveSettings, loadBackendState, lastSync, reloadConfig, shuffle } = useAnimationContext();
@@ -6378,8 +6396,7 @@
                   window.SP_REACT.createElement(deckyFrontendLib.ToggleField, { label: 'Shuffle on Boot', onChange: (checked) => { saveSettings({ ...settings, randomize: (checked) ? 'all' : '' }); }, checked: settings.randomize == 'all' })),
               window.SP_REACT.createElement(deckyFrontendLib.PanelSectionRow, null,
                   window.SP_REACT.createElement(deckyFrontendLib.ToggleField, { label: 'Force IPv4', onChange: (checked) => { saveSettings({ ...settings, force_ipv4: checked }); }, checked: settings.force_ipv4 })),
-              window.SP_REACT.createElement(deckyFrontendLib.PanelSectionRow, null,
-                  window.SP_REACT.createElement(AutoShuffleToggle, { settings: settings, saveSettings: saveSettings })),
+              window.SP_REACT.createElement(AutoShuffleToggle, { settings: settings, saveSettings: saveSettings }),
               window.SP_REACT.createElement(deckyFrontendLib.PanelSectionRow, null,
                   window.SP_REACT.createElement(deckyFrontendLib.ButtonItem, { layout: "below", onClick: reloadConfig }, "Reload Config")))));
   };

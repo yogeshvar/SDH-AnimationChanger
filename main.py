@@ -111,7 +111,8 @@ async def load_config():
         'custom_sets': [],
         'shuffle_exclusions': [],
         'force_ipv4': False,
-        'auto_shuffle_enabled': False
+        'auto_shuffle_enabled': False,
+        'auto_shuffle_interval': 10
     }
 
     async def save_new():
@@ -277,11 +278,12 @@ def randomize_all():
 
 
 async def auto_shuffle_daemon():
-    """Background daemon that shuffles animations every 2 minutes when enabled"""
+    """Background daemon that shuffles animations at user-defined intervals when enabled"""
     global unloaded
     while not unloaded:
         try:
-            await asyncio.sleep(120)  # 2 minutes = 120 seconds
+            interval = config.get('auto_shuffle_interval', 120)  # Default to 2 minutes
+            await asyncio.sleep(interval)
             if unloaded or not config.get('auto_shuffle_enabled', False):
                 continue
             
@@ -289,6 +291,9 @@ async def auto_shuffle_daemon():
             randomize_all()
             save_config()
             apply_animations()
+            await load_config()
+            load_local_animations()
+            decky_plugin.logger.info('Auto-shuffle: Configuration reloaded')
             
         except Exception as e:
             decky_plugin.logger.error('Auto-shuffle daemon error', exc_info=e)
@@ -331,7 +336,8 @@ class Plugin:
                     'throbber': config['throbber'],
                     'shuffle_exclusions': config['shuffle_exclusions'],
                     'force_ipv4': config['force_ipv4'],
-                    'auto_shuffle_enabled': config['auto_shuffle_enabled']
+                    'auto_shuffle_enabled': config['auto_shuffle_enabled'],
+                    'auto_shuffle_interval': config['auto_shuffle_interval']
                 }
             }
         except Exception as e:

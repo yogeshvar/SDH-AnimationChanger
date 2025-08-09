@@ -10,10 +10,11 @@ import {
     Tabs,
     Router,
     ToggleField,
+    SliderField,
     findModule
 } from "decky-frontend-lib";
 
-import { useEffect, useState, FC, useMemo, useRef } from "react";
+import { useEffect, useState, FC, useRef } from "react";
 import { FaRandom } from "react-icons/fa";
 
 import { AnimationProvider, useAnimationContext } from './state';
@@ -29,12 +30,20 @@ const AutoShuffleToggle: FC<{settings: any, saveSettings: any}> = ({ settings, s
     const intervalRef = useRef<NodeJS.Timeout>();
     const startTimeRef = useRef<number>();
 
+    // Interval options: [10s, 30s, 1m, 2m, 15m, 30m] in seconds
+    const intervalOptions = [10, 30, 60, 120, 900, 1800];
+    const intervalLabels = ['10 seconds', '30 seconds', '1 minute', '2 minutes', '15 minutes', '30 minutes'];
+    
+    const currentInterval = settings.auto_shuffle_interval || 10; // Default to 10 seconds
+    const currentIndex = intervalOptions.indexOf(currentInterval);
+    const currentLabel = intervalLabels[currentIndex] || '2 minutes';
+
     useEffect(() => {
         if (settings.auto_shuffle_enabled) {
             startTimeRef.current = Date.now();
             intervalRef.current = setInterval(() => {
                 const elapsed = Math.floor((Date.now() - startTimeRef.current!) / 1000);
-                const remaining = Math.max(0, 120 - elapsed); // 2 minutes = 120 seconds
+                const remaining = Math.max(0, currentInterval - elapsed);
                 const minutes = Math.floor(remaining / 60);
                 const seconds = remaining % 60;
                 setCountdown(remaining > 0 ? ` (${minutes}:${seconds.toString().padStart(2, '0')})` : "");
@@ -55,14 +64,39 @@ const AutoShuffleToggle: FC<{settings: any, saveSettings: any}> = ({ settings, s
                 clearInterval(intervalRef.current);
             }
         };
-    }, [settings.auto_shuffle_enabled]);
+    }, [settings.auto_shuffle_enabled, currentInterval]);
 
     return (
-        <ToggleField
-            label={`Auto-Shuffle Every 2 Minutes${countdown}`}
-            onChange={(checked) => { saveSettings({ ...settings, auto_shuffle_enabled: checked }) }}
-            checked={settings.auto_shuffle_enabled}
-        />
+        <>
+            <ToggleField
+                label={`Auto-Shuffle Every ${currentLabel}${countdown}`}
+                onChange={(checked) => { saveSettings({ ...settings, auto_shuffle_enabled: checked }) }}
+                checked={settings.auto_shuffle_enabled}
+            />
+            {settings.auto_shuffle_enabled && (
+                <SliderField
+                    label="Shuffle Interval"
+                    value={currentIndex >= 0 ? currentIndex : 0}
+                    min={0}
+                    max={5}
+                    step={1}
+                    valueSuffix={``}
+                    onChange={(value) => {
+                        const newInterval = intervalOptions[value];
+                        saveSettings({ ...settings, auto_shuffle_interval: newInterval });
+                    }}
+                    notchCount={6}
+                    notchLabels={[
+                        { notchIndex: 0, label: '10s' },
+                        { notchIndex: 1, label: '30s' },
+                        { notchIndex: 2, label: '1m' },
+                        { notchIndex: 3, label: '2m' },
+                        { notchIndex: 4, label: '15m' },
+                        { notchIndex: 5, label: '30m' }
+                    ]}
+                />
+            )}
+        </>
     );
 };
 
@@ -189,9 +223,7 @@ const Content: FC = () => {
                     />
                 </PanelSectionRow>
 
-                <PanelSectionRow>
-                    <AutoShuffleToggle settings={settings} saveSettings={saveSettings} />
-                </PanelSectionRow>
+                <AutoShuffleToggle settings={settings} saveSettings={saveSettings} />
 
                 <PanelSectionRow>
                     <ButtonItem
