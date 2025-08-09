@@ -25,10 +25,11 @@ import {
     InstalledAnimationsPage
 } from "./animation-manager";
 
-const AutoShuffleToggle: FC<{settings: any, saveSettings: any}> = ({ settings, saveSettings }) => {
+const AutoShuffleToggle: FC<{settings: any, saveSettings: any, loadBackendState: any}> = ({ settings, saveSettings, loadBackendState }) => {
     const [countdown, setCountdown] = useState<string>("");
     const intervalRef = useRef<NodeJS.Timeout>();
     const startTimeRef = useRef<number>();
+    const stateRefreshRef = useRef<NodeJS.Timeout>();
 
     // Interval options: [10s, 30s, 1m, 2m, 15m, 30m] in seconds
     const intervalOptions = [10, 30, 60, 120, 900, 1800];
@@ -41,6 +42,8 @@ const AutoShuffleToggle: FC<{settings: any, saveSettings: any}> = ({ settings, s
     useEffect(() => {
         if (settings.auto_shuffle_enabled) {
             startTimeRef.current = Date.now();
+            
+            // Countdown timer
             intervalRef.current = setInterval(() => {
                 const elapsed = Math.floor((Date.now() - startTimeRef.current!) / 1000);
                 const remaining = Math.max(0, currentInterval - elapsed);
@@ -50,11 +53,21 @@ const AutoShuffleToggle: FC<{settings: any, saveSettings: any}> = ({ settings, s
                 
                 if (remaining === 0) {
                     startTimeRef.current = Date.now(); // Reset timer
+                    // Refresh backend state when shuffle happens
+                    setTimeout(() => loadBackendState(), 1000); // Small delay to ensure backend shuffle is complete
                 }
             }, 1000);
+            
+            // Periodic state refresh (every 5 seconds) to catch any backend changes
+            stateRefreshRef.current = setInterval(() => {
+                loadBackendState();
+            }, 5000);
         } else {
             if (intervalRef.current) {
                 clearInterval(intervalRef.current);
+            }
+            if (stateRefreshRef.current) {
+                clearInterval(stateRefreshRef.current);
             }
             setCountdown("");
         }
@@ -63,8 +76,11 @@ const AutoShuffleToggle: FC<{settings: any, saveSettings: any}> = ({ settings, s
             if (intervalRef.current) {
                 clearInterval(intervalRef.current);
             }
+            if (stateRefreshRef.current) {
+                clearInterval(stateRefreshRef.current);
+            }
         };
-    }, [settings.auto_shuffle_enabled, currentInterval]);
+    }, [settings.auto_shuffle_enabled, currentInterval, loadBackendState]);
 
     return (
         <>
@@ -223,7 +239,7 @@ const Content: FC = () => {
                     />
                 </PanelSectionRow>
 
-                <AutoShuffleToggle settings={settings} saveSettings={saveSettings} />
+                <AutoShuffleToggle settings={settings} saveSettings={saveSettings} loadBackendState={loadBackendState} />
 
                 <PanelSectionRow>
                     <ButtonItem

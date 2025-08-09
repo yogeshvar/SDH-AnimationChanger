@@ -6286,10 +6286,11 @@
               } })))));
   };
 
-  const AutoShuffleToggle = ({ settings, saveSettings }) => {
+  const AutoShuffleToggle = ({ settings, saveSettings, loadBackendState }) => {
       const [countdown, setCountdown] = React.useState("");
       const intervalRef = React.useRef();
       const startTimeRef = React.useRef();
+      const stateRefreshRef = React.useRef();
       // Interval options: [10s, 30s, 1m, 2m, 15m, 30m] in seconds
       const intervalOptions = [10, 30, 60, 120, 900, 1800];
       const intervalLabels = ['10 seconds', '30 seconds', '1 minute', '2 minutes', '15 minutes', '30 minutes'];
@@ -6299,6 +6300,7 @@
       React.useEffect(() => {
           if (settings.auto_shuffle_enabled) {
               startTimeRef.current = Date.now();
+              // Countdown timer
               intervalRef.current = setInterval(() => {
                   const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
                   const remaining = Math.max(0, currentInterval - elapsed);
@@ -6307,12 +6309,21 @@
                   setCountdown(remaining > 0 ? ` (${minutes}:${seconds.toString().padStart(2, '0')})` : "");
                   if (remaining === 0) {
                       startTimeRef.current = Date.now(); // Reset timer
+                      // Refresh backend state when shuffle happens
+                      setTimeout(() => loadBackendState(), 1000); // Small delay to ensure backend shuffle is complete
                   }
               }, 1000);
+              // Periodic state refresh (every 5 seconds) to catch any backend changes
+              stateRefreshRef.current = setInterval(() => {
+                  loadBackendState();
+              }, 5000);
           }
           else {
               if (intervalRef.current) {
                   clearInterval(intervalRef.current);
+              }
+              if (stateRefreshRef.current) {
+                  clearInterval(stateRefreshRef.current);
               }
               setCountdown("");
           }
@@ -6320,8 +6331,11 @@
               if (intervalRef.current) {
                   clearInterval(intervalRef.current);
               }
+              if (stateRefreshRef.current) {
+                  clearInterval(stateRefreshRef.current);
+              }
           };
-      }, [settings.auto_shuffle_enabled, currentInterval]);
+      }, [settings.auto_shuffle_enabled, currentInterval, loadBackendState]);
       return (window.SP_REACT.createElement(window.SP_REACT.Fragment, null,
           window.SP_REACT.createElement(deckyFrontendLib.ToggleField, { label: `Auto-Shuffle Every ${currentLabel}${countdown}`, onChange: (checked) => { saveSettings({ ...settings, auto_shuffle_enabled: checked }); }, checked: settings.auto_shuffle_enabled }),
           settings.auto_shuffle_enabled && (window.SP_REACT.createElement(deckyFrontendLib.SliderField, { label: "Shuffle Interval", value: currentIndex >= 0 ? currentIndex : 0, min: 0, max: 5, step: 1, valueSuffix: ``, onChange: (value) => {
@@ -6396,7 +6410,7 @@
                   window.SP_REACT.createElement(deckyFrontendLib.ToggleField, { label: 'Shuffle on Boot', onChange: (checked) => { saveSettings({ ...settings, randomize: (checked) ? 'all' : '' }); }, checked: settings.randomize == 'all' })),
               window.SP_REACT.createElement(deckyFrontendLib.PanelSectionRow, null,
                   window.SP_REACT.createElement(deckyFrontendLib.ToggleField, { label: 'Force IPv4', onChange: (checked) => { saveSettings({ ...settings, force_ipv4: checked }); }, checked: settings.force_ipv4 })),
-              window.SP_REACT.createElement(AutoShuffleToggle, { settings: settings, saveSettings: saveSettings }),
+              window.SP_REACT.createElement(AutoShuffleToggle, { settings: settings, saveSettings: saveSettings, loadBackendState: loadBackendState }),
               window.SP_REACT.createElement(deckyFrontendLib.PanelSectionRow, null,
                   window.SP_REACT.createElement(deckyFrontendLib.ButtonItem, { layout: "below", onClick: reloadConfig }, "Reload Config")))));
   };
