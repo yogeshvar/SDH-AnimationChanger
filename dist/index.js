@@ -6313,10 +6313,6 @@
                       setTimeout(() => loadBackendState(), 1000); // Small delay to ensure backend shuffle is complete
                   }
               }, 1000);
-              // Periodic state refresh (every 5 seconds) to catch any backend changes
-              stateRefreshRef.current = setInterval(() => {
-                  loadBackendState();
-              }, 5000);
           }
           else {
               if (intervalRef.current) {
@@ -6335,7 +6331,7 @@
                   clearInterval(stateRefreshRef.current);
               }
           };
-      }, [settings.auto_shuffle_enabled, currentInterval, loadBackendState]);
+      }, [settings.auto_shuffle_enabled, currentInterval]);
       return (window.SP_REACT.createElement(window.SP_REACT.Fragment, null,
           window.SP_REACT.createElement(deckyFrontendLib.ToggleField, { label: `Auto-Shuffle Every ${currentLabel}${countdown}`, onChange: (checked) => { saveSettings({ ...settings, auto_shuffle_enabled: checked }); }, checked: settings.auto_shuffle_enabled }),
           settings.auto_shuffle_enabled && (window.SP_REACT.createElement(deckyFrontendLib.SliderField, { label: "Shuffle Interval", value: currentIndex >= 0 ? currentIndex : 0, min: 0, max: 5, step: 1, valueSuffix: ``, onChange: (value) => {

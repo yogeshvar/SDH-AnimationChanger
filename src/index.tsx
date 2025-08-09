@@ -58,10 +58,6 @@ const AutoShuffleToggle: FC<{settings: any, saveSettings: any, loadBackendState:
                 }
             }, 1000);
             
-            // Periodic state refresh (every 5 seconds) to catch any backend changes
-            stateRefreshRef.current = setInterval(() => {
-                loadBackendState();
-            }, 5000);
         } else {
             if (intervalRef.current) {
                 clearInterval(intervalRef.current);
@@ -80,7 +76,7 @@ const AutoShuffleToggle: FC<{settings: any, saveSettings: any, loadBackendState:
                 clearInterval(stateRefreshRef.current);
             }
         };
-    }, [settings.auto_shuffle_enabled, currentInterval, loadBackendState]);
+    }, [settings.auto_shuffle_enabled, currentInterval]);
 
     return (
         <>
