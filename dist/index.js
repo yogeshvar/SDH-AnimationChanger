@@ -6286,6 +6286,38 @@
               } })))));
   };
 
+  const AutoShuffleToggle = ({ settings, saveSettings }) => {
+      const [countdown, setCountdown] = React.useState("");
+      const intervalRef = React.useRef();
+      const startTimeRef = React.useRef();
+      React.useEffect(() => {
+          if (settings.auto_shuffle_enabled) {
+              startTimeRef.current = Date.now();
+              intervalRef.current = setInterval(() => {
+                  const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
+                  const remaining = Math.max(0, 120 - elapsed); // 2 minutes = 120 seconds
+                  const minutes = Math.floor(remaining / 60);
+                  const seconds = remaining % 60;
+                  setCountdown(remaining > 0 ? ` (${minutes}:${seconds.toString().padStart(2, '0')})` : "");
+                  if (remaining === 0) {
+                      startTimeRef.current = Date.now(); // Reset timer
+                  }
+              }, 1000);
+          }
+          else {
+              if (intervalRef.current) {
+                  clearInterval(intervalRef.current);
+              }
+              setCountdown("");
+          }
+          return () => {
+              if (intervalRef.current) {
+                  clearInterval(intervalRef.current);
+              }
+          };
+      }, [settings.auto_shuffle_enabled]);
+      return (window.SP_REACT.createElement(deckyFrontendLib.ToggleField, { label: `Auto-Shuffle Every 2 Minutes${countdown}`, onChange: (checked) => { saveSettings({ ...settings, auto_shuffle_enabled: checked }); }, checked: settings.auto_shuffle_enabled }));
+  };
   const Content = () => {
       const { allAnimations, settings, saveSettings, loadBackendState, lastSync, reloadConfig, shuffle } = useAnimationContext();
       const [bootAnimationOptions, setBootAnimationOptions] = React.useState([]);
@@ -6347,7 +6379,7 @@
               window.SP_REACT.createElement(deckyFrontendLib.PanelSectionRow, null,
                   window.SP_REACT.createElement(deckyFrontendLib.ToggleField, { label: 'Force IPv4', onChange: (checked) => { saveSettings({ ...settings, force_ipv4: checked }); }, checked: settings.force_ipv4 })),
               window.SP_REACT.createElement(deckyFrontendLib.PanelSectionRow, null,
-                  window.SP_REACT.createElement(deckyFrontendLib.ToggleField, { label: 'Auto-Shuffle Every 15 Minutes', onChange: (checked) => { saveSettings({ ...settings, auto_shuffle_enabled: checked }); }, checked: settings.auto_shuffle_enabled })),
+                  window.SP_REACT.createElement(AutoShuffleToggle, { settings: settings, saveSettings: saveSettings })),
               window.SP_REACT.createElement(deckyFrontendLib.PanelSectionRow, null,
                   window.SP_REACT.createElement(deckyFrontendLib.ButtonItem, { layout: "below", onClick: reloadConfig }, "Reload Config")))));
   };

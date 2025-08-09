@@ -13,7 +13,7 @@ import {
     findModule
 } from "decky-frontend-lib";
 
-import { useEffect, useState, FC, useMemo } from "react";
+import { useEffect, useState, FC, useMemo, useRef } from "react";
 import { FaRandom } from "react-icons/fa";
 
 import { AnimationProvider, useAnimationContext } from './state';
@@ -23,6 +23,48 @@ import {
     AboutPage,
     InstalledAnimationsPage
 } from "./animation-manager";
+
+const AutoShuffleToggle: FC<{settings: any, saveSettings: any}> = ({ settings, saveSettings }) => {
+    const [countdown, setCountdown] = useState<string>("");
+    const intervalRef = useRef<NodeJS.Timeout>();
+    const startTimeRef = useRef<number>();
+
+    useEffect(() => {
+        if (settings.auto_shuffle_enabled) {
+            startTimeRef.current = Date.now();
+            intervalRef.current = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - startTimeRef.current!) / 1000);
+                const remaining = Math.max(0, 120 - elapsed); // 2 minutes = 120 seconds
+                const minutes = Math.floor(remaining / 60);
+                const seconds = remaining % 60;
+                setCountdown(remaining > 0 ? ` (${minutes}:${seconds.toString().padStart(2, '0')})` : "");
+                
+                if (remaining === 0) {
+                    startTimeRef.current = Date.now(); // Reset timer
+                }
+            }, 1000);
+        } else {
+            if (intervalRef.current) {
+                clearInterval(intervalRef.current);
+            }
+            setCountdown("");
+        }
+
+        return () => {
+            if (intervalRef.current) {
+                clearInterval(intervalRef.current);
+            }
+        };
+    }, [settings.auto_shuffle_enabled]);
+
+    return (
+        <ToggleField
+            label={`Auto-Shuffle Every 2 Minutes${countdown}`}
+            onChange={(checked) => { saveSettings({ ...settings, auto_shuffle_enabled: checked }) }}
+            checked={settings.auto_shuffle_enabled}
+        />
+    );
+};
 
 const Content: FC = () => {
 
@@ -148,11 +190,7 @@ const Content: FC = () => {
                 </PanelSectionRow>
 
                 <PanelSectionRow>
-                    <ToggleField
-                    label='Auto-Shuffle Every 15 Minutes'
-                    onChange={(checked) => { saveSettings({ ...settings, auto_shuffle_enabled: checked }) }}
-                    checked={settings.auto_shuffle_enabled}
-                    />
+                    <AutoShuffleToggle settings={settings} saveSettings={saveSettings} />
                 </PanelSectionRow>
 
                 <PanelSectionRow>

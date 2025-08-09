@@ -277,11 +277,11 @@ def randomize_all():
 
 
 async def auto_shuffle_daemon():
-    """Background daemon that shuffles animations every 15 minutes when enabled"""
+    """Background daemon that shuffles animations every 2 minutes when enabled"""
     global unloaded
     while not unloaded:
         try:
-            await asyncio.sleep(900)  # 15 minutes = 900 seconds
+            await asyncio.sleep(120)  # 2 minutes = 120 seconds
             if unloaded or not config.get('auto_shuffle_enabled', False):
                 continue
             
