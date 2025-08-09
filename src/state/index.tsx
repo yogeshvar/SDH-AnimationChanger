@@ -39,7 +39,8 @@ export const AnimationProvider: FC<AnimationProviderType> = ({ serverAPI, childr
     boot: '',
     suspend: '',
     throbber: '',
-    force_ipv4: false
+    force_ipv4: false,
+    auto_shuffle_enabled: false
   });
 
   // When the context is mounted we load the current config.

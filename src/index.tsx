@@ -148,6 +148,14 @@ const Content: FC = () => {
                 </PanelSectionRow>
 
                 <PanelSectionRow>
+                    <ToggleField
+                    label='Auto-Shuffle Every 15 Minutes'
+                    onChange={(checked) => { saveSettings({ ...settings, auto_shuffle_enabled: checked }) }}
+                    checked={settings.auto_shuffle_enabled}
+                    />
+                </PanelSectionRow>
+
+                <PanelSectionRow>
                     <ButtonItem
                     layout="below"
                     onClick={reloadConfig}

@@ -32,6 +32,7 @@ local_animations = []
 local_sets = []
 animation_cache = []
 unloaded = False
+auto_shuffle_task = None
 
 
 async def get_steamdeckrepo():
@@ -109,7 +110,8 @@ async def load_config():
         'custom_animations': [],
         'custom_sets': [],
         'shuffle_exclusions': [],
-        'force_ipv4': False
+        'force_ipv4': False,
+        'auto_shuffle_enabled': False
     }
 
     async def save_new():
@@ -274,6 +276,42 @@ def randomize_all():
     config['current_set'] = ''
 
 
+async def auto_shuffle_daemon():
+    """Background daemon that shuffles animations every 15 minutes when enabled"""
+    global unloaded
+    while not unloaded:
+        try:
+            await asyncio.sleep(900)  # 15 minutes = 900 seconds
+            if unloaded or not config.get('auto_shuffle_enabled', False):
+                continue
+            
+            decky_plugin.logger.info('Auto-shuffle: Shuffling animations')
+            randomize_all()
+            save_config()
+            apply_animations()
+            
+        except Exception as e:
+            decky_plugin.logger.error('Auto-shuffle daemon error', exc_info=e)
+            await asyncio.sleep(60)  # Wait 1 minute before retry
+
+
+def start_auto_shuffle_daemon():
+    """Start the auto shuffle daemon if enabled"""
+    global auto_shuffle_task
+    if config.get('auto_shuffle_enabled', False) and (auto_shuffle_task is None or auto_shuffle_task.done()):
+        auto_shuffle_task = asyncio.create_task(auto_shuffle_daemon())
+        decky_plugin.logger.info('Auto-shuffle daemon started')
+
+
+def stop_auto_shuffle_daemon():
+    """Stop the auto shuffle daemon"""
+    global auto_shuffle_task
+    if auto_shuffle_task and not auto_shuffle_task.done():
+        auto_shuffle_task.cancel()
+        auto_shuffle_task = None
+        decky_plugin.logger.info('Auto-shuffle daemon stopped')
+
+
 class Plugin:
 
     async def getState(self):
@@ -292,7 +330,8 @@ class Plugin:
                     'suspend': config['suspend'],
                     'throbber': config['throbber'],
                     'shuffle_exclusions': config['shuffle_exclusions'],
-                    'force_ipv4': config['force_ipv4']
+                    'force_ipv4': config['force_ipv4'],
+                    'auto_shuffle_enabled': config['auto_shuffle_enabled']
                 }
             }
         except Exception as e:
@@ -413,9 +452,21 @@ class Plugin:
     async def saveSettings(self, settings):
         """ Save settings to config file """
         try:
+            # Check if auto_shuffle_enabled changed
+            old_auto_shuffle = config.get('auto_shuffle_enabled', False)
             config.update(settings)
+            new_auto_shuffle = config.get('auto_shuffle_enabled', False)
+            
             save_config()
             apply_animations()
+            
+            # Handle auto-shuffle daemon based on setting change
+            if old_auto_shuffle != new_auto_shuffle:
+                if new_auto_shuffle:
+                    start_auto_shuffle_daemon()
+                else:
+                    stop_auto_shuffle_daemon()
+                    
         except Exception as e:
             decky_plugin.logger.error('Failed to save settings', exc_info=e)
             raise e
@@ -477,6 +528,9 @@ class Plugin:
             decky_plugin.logger.error('Failed to apply animations', exc_info=e)
             raise e
 
+        # Start auto-shuffle daemon if enabled
+        start_auto_shuffle_daemon()
+
         await asyncio.sleep(5.0)
         if unloaded:
             return
@@ -491,6 +545,7 @@ class Plugin:
     async def _unload(self):
         global unloaded
         unloaded = True
+        stop_auto_shuffle_daemon()
         decky_plugin.logger.info('Unloaded')
 
     async def _migration(self):
